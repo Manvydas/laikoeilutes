@@ -1,0 +1,28 @@
+---
+title: "Laiko eilučių laboratorinių darbų užduotis"
+subtitle: "Įskaitinių eismo įvykių Lietuvoje analizė"
+author: "Linas Šyvis ir Manvydas Sokolovas"
+output: html_document
+---
+
+* **1.Duomenų apžvalga**
+
+```{r, echo = F}
+data <- read.csv2("ivykiai.csv", header = T)
+kiti <- read.csv2("menesiniai.csv", header = T, skip = 1)
+colnames(data) <- c("Data", "Kaunas", "Klaipeda", "Panevezys", "Siauliai", "Vilnius")
+ivykiai <- rowSums(data[,2:6])
+tseries <- ts(ivykiai, start = c(2009, 1), frequency = 12)
+plot(tseries, xlab = "Laikas", ylab = "Įvykių sk.", main = "Įskaitinių eismo įvykių Lietuvoje skaičius", col = "dark green", lwd = 3)
+```
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Nagrinėti 2009-2017 metų mėnesiniai įskaitinių eismo įvykių Lietuvoje duomenys. Sezoniškumo ir kitų nuokrypių pagrindinės priežastys tikėtinai yra meteorologinės sąlygos, atostogų metas, alkoholio vartojimas, gyventojų skaičius.
+
+* **3.1.Sezoniškumo įvertinimas**
+
+Naudosime stl() funkciją.
+```{r}
+plot(stl(tseries, s.window="periodic"))
+plot(decompose(tseries))
+```
+
