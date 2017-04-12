@@ -8,6 +8,7 @@ output: html_document
 ```{r}
 library(fpp)
 library(tseries)
+library(plyr)
 ```
 
 
@@ -16,6 +17,7 @@ library(tseries)
 ```{r, echo = F}
 data <- read.csv2("ivykiai.csv", header = T)
 kiti <- read.csv2("menesiniai.csv", header = T, skip = 1)
+emig <- read.csv2("emigrantai.csv", sep = ",")
 colnames(data) <- c("Data", "Kaunas", "Klaipeda", "Panevezys", "Siauliai", "Vilnius")
 ivykiai <- rowSums(data[,2:6])
 tseries <- ts(ivykiai, start = c(2009, 1), frequency = 12)
@@ -38,22 +40,40 @@ plot(stl(tseries, s.window="periodic"))
 
 Grafikas patvirtina, kad duomenyse egzistuoja tam tikras sezoniškumas ir trendas.
 
-* **3.2.Stacionarumo įvertinimas**
+* *3.2.Stacionarumo įvertinimas*
 
-Stacionarumui įvertinti naudosime Augmented Dickey-Fuller (ADF) ir KPSS
-testus bei atsižvelgsime į ACF ir PACF grafikus.
-
-```{r}
-
-Acf(tseries)
-Pacf(tseries)
-```
-
+Augmented Dickey-Fuller ir Phillips-Perron H0 hipotezė tikrina ar duomenys turi vienetinę šaknį:
 ```{r}
 adf.test(tseries)
-kpss.test(tseries, null = c("Level", "Trend"))
+pp.test(tseries)
+```
 
-```
+Kwiatkowski-Phillips-Schmidt-Shin testo mažos p reikšmės rodo, kad duomenys nestacionarūs:
 ```{r}
-stl(tseries, s.window="periodic")$time.series[,"remainder"]
+kpss.test(tseries, null = c("Level", "Trend"))
 ```
+
+Visi testai rodo, jog mūsų duomenys yra stacionarūs. Taigi duomenų transformacijos nėra reikalingos.
+
+
+* **4.Tiesinis modelis**
+
+```{r, echo = F}
+kiti$ivykiai <- ivykiai[1:94]
+list <- strsplit(as.character(kiti$laikas), "M")
+df <- ldply(list)
+duom <- cbind(df, kiti[,-1])
+colnames(duom)[1:2] <- c("Metai", "Menuo")
+duom$emigrantai <- emig[, 2]
+duom$pavasaris <- ifelse(duom$Menuo %in% c("01", "02", "03", "04"), 1, 0)
+```
+
+```{r, echo = F}
+tiesinis <- lm(ivykiu_skaicius ~ alkoholiniai_gerimai + transporto_priemoniu_isigijimas +  asmeniniu_transporto_priemoniu_eksploatacija + transporto_paslaugos + svietimas + transporto_priemoniu_draudimas + benzinas_95 + dyzelinas + pirma_karta_registruotos_priemones + keleiviu_vezimas_autobusais_tukstanciais + keleiviu_vezimas_viesuoju_tukstanciais + nedarbo_lygis_proc + gyventoju_sk + vid_temp + gryno_alko_1gyv + krituliai_mm + pavasaris, data = duom)
+stepas <- step(tiesinis)
+
+tiesinis1 <- lm(ivykiu_skaicius ~ alkoholiniai_gerimai + benzinas_95 + pavasaris, data = duom)
+summary(tiesinis1)
+```
+
+
