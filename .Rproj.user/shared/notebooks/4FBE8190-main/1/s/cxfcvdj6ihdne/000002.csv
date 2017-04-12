@@ -1,6 +1,0 @@
-"0","data <- read.csv2(""ivykiai.csv"", header = T)"
-"0","kiti <- read.csv2(""menesiniai.csv"", header = T, skip = 1)"
-"0","colnames(data) <- c(""Data"", ""Kaunas"", ""Klaipeda"", ""Panevezys"", ""Siauliai"", ""Vilnius"")"
-"0","ivykiai <- rowSums(data[,2:6])"
-"0","tseries <- ts(ivykiai, start = c(2009, 1), frequency = 12)"
-"0","plot(tseries, xlab = ""Laikas"", ylab = ""Įvykių sk."", main = ""Įskaitinių eismo įvykių Lietuvoje skaičius"", col = ""dark green"", lwd = 3)"

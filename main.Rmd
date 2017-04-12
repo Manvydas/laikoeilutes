@@ -5,6 +5,12 @@ author: "Linas Šyvis ir Manvydas Sokolovas"
 output: html_document
 ---
 
+```{r}
+library(fpp)
+library(tseries)
+```
+
+
 * **1.Duomenų apžvalga**
 
 ```{r, echo = F}
@@ -16,22 +22,29 @@ tseries <- ts(ivykiai, start = c(2009, 1), frequency = 12)
 plot(tseries, xlab = "Laikas", ylab = "Įvykių sk.", main = "Įskaitinių eismo įvykių Lietuvoje skaičius", col = "dark green", lwd = 3)
 ```
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Nagrinėti 2009-2017 metų mėnesiniai įskaitinių eismo įvykių Lietuvoje duomenys. Sezoniškumo ir kitų nuokrypių pagrindinės priežastys tikėtinai yra meteorologinės sąlygos, atostogų metas, alkoholio vartojimas, gyventojų skaičius.
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Nagrinėti 2009-2017 metų mėnesiniai įskaitinių eismo įvykių Lietuvoje duomenys. 
+
+* **2.Sezoniškumo įvertinimas**
+
+Sezoniškumo ir kitų nuokrypių pagrindinės priežastys tikėtinai yra meteorologinės sąlygos, atostogų metas, alkoholio vartojimas, gyventojų skaičius.
 
 * **3.1.Sezoniškumo įvertinimas**
 
-Naudosime stl() funkciją.
-```{r}
+Duomenyse pastebimas akivaizdus sezoniškumas, todėl jam įvertinti naudosime stl() funkciją, kuri iš laiko eilutės išskiria sezoninę ir trendo komponentes.
+
+```{r, echo = F}
 plot(stl(tseries, s.window="periodic"))
-plot(decompose(tseries))
-# jei stl pasirenki periodic, tai tūrėtų būt tas pats kas decompose
 ```
+
+Grafikas patvirtina, kad duomenyse egzistuoja tam tikras sezoniškumas ir trendas.
 
 * **3.2.Stacionarumo įvertinimas**
 
+Stacionarumui įvertinti naudosime Augmented Dickey-Fuller (ADF) ir KPSS
+testus bei atsižvelgsime į ACF ir PACF grafikus.
+
 ```{r}
-library(fpp)
-library(forecast)
+
 Acf(tseries)
 Pacf(tseries)
 ```
