@@ -24,5 +24,23 @@ Naudosime stl() funkciją.
 ```{r}
 plot(stl(tseries, s.window="periodic"))
 plot(decompose(tseries))
+# jei stl pasirenki periodic, tai tūrėtų būt tas pats kas decompose
 ```
 
+* **3.2.Stacionarumo įvertinimas**
+
+```{r}
+library(fpp)
+library(forecast)
+Acf(tseries)
+Pacf(tseries)
+```
+
+```{r}
+adf.test(tseries)
+kpss.test(tseries, null = c("Level", "Trend"))
+
+```
+```{r}
+stl(tseries, s.window="periodic")$time.series[,"remainder"]
+```

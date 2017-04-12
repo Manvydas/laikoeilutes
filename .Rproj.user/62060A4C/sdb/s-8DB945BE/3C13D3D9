@@ -1,0 +1,20 @@
+{
+    "collab_server" : "",
+    "contents" : "---\ntitle: \"Laiko eilučių laboratorinių darbų užduotis\"\nsubtitle: \"Įskaitinių eismo įvykių Lietuvoje analizė\"\nauthor: \"Linas Šyvis ir Manvydas Sokolovas\"\noutput: html_document\n---\n\n* **1.Duomenų apžvalga**\n\n```{r, echo = F}\ndata <- read.csv2(\"ivykiai.csv\", header = T)\nkiti <- read.csv2(\"menesiniai.csv\", header = T, skip = 1)\ncolnames(data) <- c(\"Data\", \"Kaunas\", \"Klaipeda\", \"Panevezys\", \"Siauliai\", \"Vilnius\")\nivykiai <- rowSums(data[,2:6])\ntseries <- ts(ivykiai, start = c(2009, 1), frequency = 12)\nplot(tseries, xlab = \"Laikas\", ylab = \"Įvykių sk.\", main = \"Įskaitinių eismo įvykių Lietuvoje skaičius\", col = \"dark green\", lwd = 3)\n```\n\n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Nagrinėti 2009-2017 metų mėnesiniai įskaitinių eismo įvykių Lietuvoje duomenys. Sezoniškumo ir kitų nuokrypių pagrindinės priežastys tikėtinai yra meteorologinės sąlygos, atostogų metas, alkoholio vartojimas, gyventojų skaičius.\n\n* **3.1.Sezoniškumo įvertinimas**\n\nNaudosime stl() funkciją.\n```{r}\nplot(stl(tseries, s.window=\"periodic\"))\nplot(decompose(tseries))\n# jei stl pasirenki periodic, tai tūrėtų būt tas pats kas decompose\n```\n\n* **3.2.Stacionarumo įvertinimas**\n\n```{r}\nlibrary(fpp)\nlibrary(forecast)\nAcf(tseries)\nPacf(tseries)\n```\n\n```{r}\nadf.test(tseries)\nkpss.test(tseries, null = c(\"Level\", \"Trend\"))\n\n```\n```{r}\nstl(tseries, s.window=\"periodic\")$time.series[,\"remainder\"]\n```",
+    "created" : 1489137210416.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "3476098860",
+    "id" : "3C13D3D9",
+    "lastKnownWriteTime" : 1492009347,
+    "last_content_update" : 1492009347575,
+    "path" : "~/Library/Mobile Documents/com~apple~CloudDocs/6 semestras/Laiko eilutės/laikoeilutes_praktika/main.Rmd",
+    "project_path" : null,
+    "properties" : {
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_markdown"
+}
