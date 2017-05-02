@@ -5,10 +5,13 @@ author: "Linas Šyvis ir Manvydas Sokolovas"
 output: html_document
 ---
 
-```{r}
+```{r, echo=F, message=F, warning=F}
 library(fpp)
 library(tseries)
 library(plyr)
+library(car)
+library(strucchange)
+library(knitr)
 ```
 
 
@@ -24,11 +27,11 @@ tseries <- ts(ivykiai, start = c(2009, 1), frequency = 12)
 plot(tseries, xlab = "Laikas", ylab = "Įvykių sk.", main = "Įskaitinių eismo įvykių Lietuvoje skaičius", col = "dark green", lwd = 3)
 ```
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Nagrinėti 2009-2017 metų mėnesiniai įskaitinių eismo įvykių Lietuvoje duomenys. 
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Nagrinėti 2009-2017 metų mėnesiniai įskaitinių eismo įvykių Lietuvoje duomenys. Šaltinis - Lietuvos statistikos departamentas. Duomenyse matomas sezoniškumas (įvykių skaičiaus sumažėjimas kiekvienų metų pradžioje ir padidėjimas pabaigoje). Aiškų trendą sunku įžvelgti.
 
-* **2.Sezoniškumo įvertinimas**
+* **2. Kiti rodikliai**
 
-Sezoniškumo ir kitų nuokrypių pagrindinės priežastys tikėtinai yra meteorologinės sąlygos, atostogų metas, alkoholio vartojimas, gyventojų skaičius.
+Sezoniškumo ir kitų nuokrypių pagrindinės priežastys tikėtinai yra metų laikas, kuro kainos, alkoholio vartojimas, gyventojų, emigrantų skaičius.
 
 * **3.1.Sezoniškumo įvertinimas**
 
@@ -36,44 +39,117 @@ Duomenyse pastebimas akivaizdus sezoniškumas, todėl jam įvertinti naudosime s
 
 ```{r, echo = F}
 plot(stl(tseries, s.window="periodic"))
+ses <- tseries - sf$time.series[,"seasonal"]
 ```
 
-Grafikas patvirtina, kad duomenyse egzistuoja tam tikras sezoniškumas ir trendas.
+Grafikas patvirtina, kad duomenyse egzistuoja tam tikras sezoniškumas ir trendas ir juos išskiria.
 
 * *3.2.Stacionarumo įvertinimas*
 
-Augmented Dickey-Fuller ir Phillips-Perron H0 hipotezė tikrina ar duomenys turi vienetinę šaknį:
-```{r}
+Augmented Dickey-Fuller ir Phillips-Perron testų $H_0$ hipotezė tikrina ar duomenys turi vienetinę šaknį:
+```{r, echo=F, warning=F}
 adf.test(tseries)
 pp.test(tseries)
 ```
 
 Kwiatkowski-Phillips-Schmidt-Shin testo mažos p reikšmės rodo, kad duomenys nestacionarūs:
-```{r}
+```{r, echo=F, warning=F}
 kpss.test(tseries, null = c("Level", "Trend"))
 ```
 
-Visi testai rodo, jog mūsų duomenys yra stacionarūs. Taigi duomenų transformacijos nėra reikalingos.
+Visi testai rodo, jog mūsų duomenys yra stacionarūs. Taigi duomenų transformacijos nėra būtinos
 
+* **4.1.Tiesinis modelis**
 
-* **4.Tiesinis modelis**
-
-```{r, echo = F}
+```{r, echo = F, message=F}
 kiti$ivykiai <- ivykiai[1:94]
 list <- strsplit(as.character(kiti$laikas), "M")
 df <- ldply(list)
 duom <- cbind(df, kiti[,-1])
 colnames(duom)[1:2] <- c("Metai", "Menuo")
 duom$emigrantai <- emig[, 2]
-duom$pavasaris <- ifelse(duom$Menuo %in% c("01", "02", "03", "04"), 1, 0)
+duom$Sausisbalandis <- ifelse(duom$Menuo %in% c("01", "02", "03", "04"), 1, 0)
+```
+
+```{r, echo = F, message=F}
+tiesinis1 <- lm(ivykiu_skaicius ~  dyzelinas+ pirma_karta_registruotos_priemones+ krituliai_mm + Sausisbalandis, data = duom)
+summary(tiesinis1)
+ncvTest(tiesinis1)
 ```
 
 ```{r, echo = F}
-tiesinis <- lm(ivykiu_skaicius ~ alkoholiniai_gerimai + transporto_priemoniu_isigijimas +  asmeniniu_transporto_priemoniu_eksploatacija + transporto_paslaugos + svietimas + transporto_priemoniu_draudimas + benzinas_95 + dyzelinas + pirma_karta_registruotos_priemones + keleiviu_vezimas_autobusais_tukstanciais + keleiviu_vezimas_viesuoju_tukstanciais + nedarbo_lygis_proc + gyventoju_sk + vid_temp + gryno_alko_1gyv + krituliai_mm + pavasaris, data = duom)
-stepas <- step(tiesinis)
-
-tiesinis1 <- lm(ivykiu_skaicius ~ alkoholiniai_gerimai + benzinas_95 + pavasaris, data = duom)
-summary(tiesinis1)
+kable(summary(tiesinis1)$coef, digits = 2)
+# Jei p-value > 0.05, tai H0 hipotezė priimama - paklaidos homoskedastiškos.
 ```
 
+Gautas tiesinis modelis, kurį sudaro statistiškai reikšmingi kintamieji:
+
+ * dyzelinas (dyzelio mėnesinės kainos)
+
+ * valstybėje pirmą kartą registruotos priemonių skaičius
+
+ * krituliai (mm)
+
+ * pseudokintamasis Sausis-balandis, kuris įgija reikšmes: 1 - sausio-balandžio mėn. ir 0 - kovo-gruodžio mėn. Pastarasis regresorius įtrauktas pastebėjus aiškų sezoninį eismo įvykių sumažėjimą metų pradžioje.
+
+* **4.2. Modelio struktūrinių lūžių vertinimas**
+
+Tikrinant, ar modelis turi struktūrinių lūžių, panaudota $breakpoints$ funkcija iš {strucchange} paketo.
+
+```{r, echo=F}
+breakpoints(ivykiu_skaicius ~  dyzelinas+ pirma_karta_registruotos_priemones+ krituliai_mm+ Sausisbalandis, data = duom)
+```
+
+Duomenyse nepastebėta jokių struktūrinių lūžių.
+
+5.Likučiai
+
+```{r}
+plot(tiesinis1$res, type="l", lwd=2)
+abline(0,0, lwd=1, col="red")
+hist(tiesinis1$res)
+```
+
+```{r}
+Acf(tiesinis1$res)
+pacf(tiesinis1$res)
+```
+
+Abu grafikai turi keletą reikšmingų lag'ų
+
+Atliekamas Ljung-Box testas su $H_0$ hipoteze - liekanos yra baltasis triukšmas:
+
+```{r}
+balt_p <- Box.test(tiesinis1$res, type="Ljung-Box")
+balt_p12 <- Box.test(tiesinis1$res, lag=12, type="Ljung-Box")
+```
+
+
+Gauta p reikšmė `balt_p`. Liekanos nėra baltasis triukšmas. Naudojama "auto.arima" parinkti ARMA(p,q) modelį likučiams:
+
+```{r}
+auto.arima(tiesinis1$res, d=0)
+```
+
+Gautas ARMA(1,1) modelis. Liekanas galima įvertinti 
+
+$X_t$ + 0.84$X_{t-1}$ = $Z_t$ - 0.56$Z_{t-1}$
+
+* **6.Kryžminė patikra**
+
+Dabar modelio gerumą tikrinsime naudodami kryžminę patikrą. Algoritmo principas - kiekviename žingsnyje didinti prognozuojamos imties stebėjimų skaičių vienetu ir palyginti prognozes su tikromis reikšmėmis. Atlikus šį algoritmą suskaičiuosime prognozės tikslumą MAE ir MAPE rodikliais.
+
+```{r}
+k <- 48 # minimum size for training set
+n <- length(visitors) # Total number of observations
+e <- visitors*NA # Vector to record one-step forecast errors
+for(i in 48:(n-1))
+{
+train <- ts(visitors[1:i],freq=12)
+fit <- ets(train, "MAM", damped=FALSE)
+fc <- forecast(fit,h=1)$mean
+e[i] <- visitors[i+1]-fc
+}
+sqrt(mean(e^2,na.rm=TRUE))
+```
 
