@@ -18,11 +18,16 @@ library(knitr)
 * **1.Duomenų apžvalga**
 
 ```{r, echo = F}
+#5 miestu ivykiu skaicius
 data <- read.csv2("ivykiai.csv", header = T)
-kiti <- read.csv2("menesiniai.csv", header = T, skip = 1)
-emig <- read.csv2("emigrantai.csv", sep = ",")
 colnames(data) <- c("Data", "Kaunas", "Klaipeda", "Panevezys", "Siauliai", "Vilnius")
+#5 miestu ivykiu skaiciaus sumavimas i bendra
 ivykiai <- rowSums(data[,2:6])
+
+#kiti regresoriai
+kiti <- read.csv2("menesiniai.csv", header = T, skip = 1)
+
+#grafikelis
 tseries <- ts(ivykiai, start = c(2009, 1), frequency = 12)
 plot(tseries, xlab = "Laikas", ylab = "Įvykių sk.", main = "Įskaitinių eismo įvykių Lietuvoje skaičius", col = "dark green", lwd = 3)
 ```
@@ -38,8 +43,11 @@ Sezoniškumo ir kitų nuokrypių pagrindinės priežastys tikėtinai yra metų l
 Duomenyse pastebimas akivaizdus sezoniškumas, todėl jam įvertinti naudosime stl() funkciją, kuri iš laiko eilutės išskiria sezoninę ir trendo komponentes.
 
 ```{r, echo = F}
-plot(stl(tseries, s.window="periodic"))
-ses <- tseries - sf$time.series[,"seasonal"]
+stl <- stl(tseries, s.window="periodic")
+plot(stl)
+
+#nusezoninimas
+nusez <- tseries - stl$time.series[,"seasonal"]
 ```
 
 Grafikas patvirtina, kad duomenyse egzistuoja tam tikras sezoniškumas ir trendas ir juos išskiria.
@@ -48,31 +56,31 @@ Grafikas patvirtina, kad duomenyse egzistuoja tam tikras sezoniškumas ir trenda
 
 Augmented Dickey-Fuller ir Phillips-Perron testų $H_0$ hipotezė tikrina ar duomenys turi vienetinę šaknį:
 ```{r, echo=F, warning=F}
-adf.test(tseries)
-pp.test(tseries)
+adf <- adf.test(nusez)
+pp.test(nusez)
 ```
 
 Kwiatkowski-Phillips-Schmidt-Shin testo mažos p reikšmės rodo, kad duomenys nestacionarūs:
 ```{r, echo=F, warning=F}
-kpss.test(tseries, null = c("Level", "Trend"))
+kpss.test(nusez)
 ```
 
-Visi testai rodo, jog mūsų duomenys yra stacionarūs. Taigi duomenų transformacijos nėra būtinos
+ADF testo $H_0$ hipotezės atmesti negalime, testo p reikšmė: `adf`. Tačiau kiti testai rodo, jog duomenys yra stacionarūs. Taip gali būti dėl heteroskedastiškumo. Taigi duomenų transformacijų neatliksime.
 
 * **4.1.Tiesinis modelis**
 
 ```{r, echo = F, message=F}
-kiti$ivykiai <- ivykiai[1:94]
+#duomenys iki 2016/10, todel ne imami nevisi
+kiti$ivykiai <- nusez[1:94]
 list <- strsplit(as.character(kiti$laikas), "M")
-df <- ldply(list)
-duom <- cbind(df, kiti[,-1])
-colnames(duom)[1:2] <- c("Metai", "Menuo")
-duom$emigrantai <- emig[, 2]
-duom$Sausisbalandis <- ifelse(duom$Menuo %in% c("01", "02", "03", "04"), 1, 0)
+mod.data <- cbind(ldply(list), kiti[,-1])
+colnames(mod.data)[1:2] <- c("Metai", "Menuo")
+mod.data$Sausisbalandis <- ifelse(mod.data$Menuo %in% c("01", "02", "03", "04"), 1, 0)
+mod.data$kuras <- (mod.data$dyzelinas + mod.data$benzinas_95)/2
 ```
 
 ```{r, echo = F, message=F}
-tiesinis1 <- lm(ivykiu_skaicius ~  dyzelinas+ pirma_karta_registruotos_priemones+ krituliai_mm + Sausisbalandis, data = duom)
+tiesinis1 <- lm(ivykiu_skaicius ~  kuras + krituliai_mm + Sausisbalandis, data = mod.data)
 summary(tiesinis1)
 ncvTest(tiesinis1)
 ```
@@ -129,6 +137,8 @@ Gauta p reikšmė `balt_p`. Liekanos nėra baltasis triukšmas. Naudojama "auto.
 
 ```{r}
 auto.arima(tiesinis1$res, d=0)
+lmma1 <- arima(ses[1:92], order = c(1,0,1), xreg = duom[1:92,c("dyzelinas", "pirma_karta_registruotos_priemones", "krituliai_mm", "Sausisbalandis")])
+Box.test(lmma1$res, type = "Ljung-Box")
 ```
 
 Gautas ARMA(1,1) modelis. Liekanas galima įvertinti 
