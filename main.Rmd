@@ -48,6 +48,7 @@ plot(stl)
 
 #nusezoninimas
 nusez <- tseries - stl$time.series[,"seasonal"]
+nusez <- nusez[1:94]
 ```
 
 Grafikas patvirtina, kad duomenyse egzistuoja tam tikras sezoniškumas ir trendas ir juos išskiria.
@@ -73,7 +74,7 @@ Testai sufleruoja, kad duomenys stacionarūs. Taigi duomenų transformacijų atl
 
 ```{r, echo = F, message=F}
 #duomenys iki 2016/10, todel ne imami nevisi
-kiti$ivykiai <- nusez[1:94]
+kiti$ivykiai <- nusez
 list <- strsplit(as.character(kiti$laikas), "M")
 mod.data <- cbind(ldply(list), kiti[,-1])
 colnames(mod.data)[1:2] <- c("Metai", "Menuo")
@@ -149,28 +150,47 @@ Gautas ARMA(1,1) modelis. Liekanas galima įvertinti modeliu:
 $X_t$ - 0.86$X_{t-1}$ = $Z_t$ - 0.59$Z_{t-1}$
 
 ```{r, echo=F, warning=F}
-lmma1 <- arima(nusez[1:94], order = c(1,0,1), 
+tiesinis2 <- arima(nusez, order = c(1,0,1), 
                xreg = mod.data[1:94,c("dyzelinas", "pirma_karta_registruotos_priemones", "krituliai_mm", "Sausisbalandis")])
-Box.test(lmma1$res, type = "Ljung-Box")
+Box.test(tiesinis2$res, type = "Ljung-Box")
 ```
 
 Atlikus Ljung-Box testą, gauta p reikšmė > 0.05. Vadinasi negalima atmesti nulinės hipotezės bei teigti, kad pervertinto modelio liekanos nesudaro baltojo triukšmo.
 
 * **6.1 Kryžminė patikra**
 
-Modelio gerumas tikrinamas naudodajant kryžminę patikrą. Algoritmo principas - kiekviename žingsnyje didinti prognozuojamos imties stebėjimų skaičių vienetu ir palyginti prognozes su tikromis reikšmėmis. Atlikus šį algoritmą prognozės tikslumas bus palygintas MAE ir MAPE rodikliais.
+Modelio gerumas tikrinamas naudojant kryžminę patikrą. Algoritmo principas - kiekviename žingsnyje didinti prognozuojamos imties stebėjimų skaičių vienetu ir palyginti prognozes su tikromis reikšmėmis. Atlikus šį algoritmą prognozės tikslumas bus palygintas RMSE, MAE ir MAPE rodikliais.
+
+```{r, echo=F, warning=F}
+#1-zingsnio prognoziu generavimas kryzmines patikros budu
+f1 = rep(NA, 94)
+for(i in 11:94) try({
+  mod <- arima(nusez[1:(i-1)], xreg = mod.data[1:(i-1), c("dyzelinas", "pirma_karta_registruotos_priemones", "krituliai_mm", "Sausisbalandis")],
+               order = tiesinis2$arma[c(1, 6, 2)], include.mean = F)
+  fc = predict(mod, newxreg = mod.data[i, c("dyzelinas", "pirma_karta_registruotos_priemones", "krituliai_mm", "Sausisbalandis")], h=1)
+  f1[i] <- fc$pred
+}, silent = T)
+progn1 <- ts(f1, start = c(2009,1), frequency = 12)
+```
+
+```{r, echo=F, warning=F}
+nusez <- ts(nusez, start = c(2009,1), frequency = 12)
+plot(nusez, type = "l", main = "Prognozės vs tikrosios reikšmės", lwd = 3, ylab = "", xlab = "Laikas")
+lines(progn1, col = "red", lwd = 3)
+legend("bottomright", c("Tikrosios reikšmės", "Prognozės"), col = c(1,2), lty = c(1,1), cex = 0.8, lwd = 3, pt.cex = 1, text.width = 1)
+```
+
+Kryžminės patikros būdu gautos prognozės atrodo ganėtinai tikslios. Palyginsime gauto modelio prognozių ir $auto.arima$ modelio prognozių tikslumą pagal RMSE, MAE, MAPE.
 
 ```{r}
-k <- 48 # minimum size for training set
-n <- length(visitors) # Total number of observations
-e <- visitors*NA # Vector to record one-step forecast errors
-for(i in 48:(n-1))
-{
-train <- ts(visitors[1:i],freq=12)
-fit <- ets(train, "MAM", damped=FALSE)
-fc <- forecast(fit,h=1)$mean
-e[i] <- visitors[i+1]-fc
-}
-sqrt(mean(e^2,na.rm=TRUE))
+mod.arima <- auto.arima(nusez)
+f2 = rep(NA, 94)
+for(i in 11:94) try({
+  mod <- arima(nusez[1:(i-1)], order = mod.arima$arma[c(1, 6, 2)], include.mean = F)
+  fc = forecast(mod, h=1)
+  f2[i] <- fc$mean
+}, silent = T)
+progn2 <- ts(f2, start = c(2009,1), frequency = 12)
+```
 ```
 
