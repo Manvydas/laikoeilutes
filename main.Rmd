@@ -40,7 +40,7 @@ Sezoniškumo ir kitų nuokrypių pagrindinės priežastys tikėtinai yra metų l
 
 * **3.1.Sezoniškumo įvertinimas**
 
-Duomenyse pastebimas akivaizdus sezoniškumas, todėl jam įvertinti naudosime stl() funkciją, kuri iš laiko eilutės išskiria sezoninę ir trendo komponentes.
+Duomenyse pastebimas akivaizdus sezoniškumas, todėl jam įvertinti naudosime $stl()$ funkciją, kuri iš laiko eilutės išskiria sezoninę ir trendo komponentes.
 
 ```{r, echo = F}
 stl <- stl(tseries, s.window="periodic")
@@ -52,20 +52,22 @@ nusez <- tseries - stl$time.series[,"seasonal"]
 
 Grafikas patvirtina, kad duomenyse egzistuoja tam tikras sezoniškumas ir trendas ir juos išskiria.
 
-* *3.2.Stacionarumo įvertinimas*
+* **3.2.Stacionarumo įvertinimas**
 
-Augmented Dickey-Fuller ir Phillips-Perron testų $H_0$ hipotezė tikrina ar duomenys turi vienetinę šaknį:
+Augmented Dickey-Fuller testo $H_0$ hipotezė tikrina ar duomenys turi vienetinę šaknį:
 ```{r, echo=F, warning=F}
-adf <- adf.test(nusez)
-pp.test(nusez)
+adf.test(nusez)
 ```
 
-Kwiatkowski-Phillips-Schmidt-Shin testo mažos p reikšmės rodo, kad duomenys nestacionarūs:
+ADF testo $H_0$ hipotezės atmesti negalime, testo p reikšmė > 0.05. Taip gali būti dėl heteroskedastiškumo.
+
+Phillips-Perron testo $H_0$ hipotezė tikrina, ar duomenys turi vienetinę šaknį, o Kwiatkowski-Phillips-Schmidt-Shin $H_0$ hipotezė tikrina, ar duomenys yra stacionarūs.
 ```{r, echo=F, warning=F}
+pp.test(nusez)
 kpss.test(nusez)
 ```
 
-ADF testo $H_0$ hipotezės atmesti negalime, testo p reikšmė: `adf`. Tačiau kiti testai rodo, jog duomenys yra stacionarūs. Taip gali būti dėl heteroskedastiškumo. Taigi duomenų transformacijų neatliksime.
+Testai sufleruoja, kad duomenys stacionarūs. Taigi duomenų transformacijų atlikti nebūtina.
 
 * **4.1.Tiesinis modelis**
 
@@ -81,8 +83,6 @@ mod.data$kuras <- (mod.data$dyzelinas + mod.data$benzinas_95)/2
 
 ```{r, echo = F, message=F}
 tiesinis1 <- lm(ivykiu_skaicius ~  kuras + krituliai_mm + Sausisbalandis, data = mod.data)
-summary(tiesinis1)
-ncvTest(tiesinis1)
 ```
 
 ```{r, echo = F}
@@ -92,9 +92,9 @@ kable(summary(tiesinis1)$coef, digits = 2)
 
 Gautas tiesinis modelis, kurį sudaro statistiškai reikšmingi kintamieji:
 
- * dyzelinas (dyzelio mėnesinės kainos)
+ * dyzelinas (kainos mėnesinis vidurkis)
 
- * valstybėje pirmą kartą registruotos priemonių skaičius
+ * valstybėje pirmą kartą registruotų transporto priemonių skaičius
 
  * krituliai (mm)
 
@@ -105,49 +105,60 @@ Gautas tiesinis modelis, kurį sudaro statistiškai reikšmingi kintamieji:
 Tikrinant, ar modelis turi struktūrinių lūžių, panaudota $breakpoints$ funkcija iš {strucchange} paketo.
 
 ```{r, echo=F}
-breakpoints(ivykiu_skaicius ~  dyzelinas+ pirma_karta_registruotos_priemones+ krituliai_mm+ Sausisbalandis, data = duom)
+breakpoints(ivykiu_skaicius ~  dyzelinas+ pirma_karta_registruotos_priemones+ krituliai_mm+ Sausisbalandis, data = mod.data)
 ```
 
 Duomenyse nepastebėta jokių struktūrinių lūžių.
 
-5.Likučiai
+* **5.Tiesinio modelio liekanos**
 
-```{r}
-plot(tiesinis1$res, type="l", lwd=2)
+```{r, echo=F, warning=F}
+plot(tiesinis1$res, type="l", lwd=2, xlab = "", ylab = "", main = "Liekanos")
 abline(0,0, lwd=1, col="red")
-hist(tiesinis1$res)
 ```
 
-```{r}
-Acf(tiesinis1$res)
-pacf(tiesinis1$res)
+Duomenų liekanos daugmaž išsidėsčiusios apie 0 (raudona linija).
+
+```{r, echo=F, warning=F}
+hist(tiesinis1$res, main = "Modelio liekanų histograma", ylab = "Dažnis", xlab = "Liekanų reikšmės")
 ```
 
-Abu grafikai turi keletą reikšmingų lag'ų
+Iš histogramos pastebima, kad liekanų pasiskirstymas panašus į normalųjį.
 
-Atliekamas Ljung-Box testas su $H_0$ hipoteze - liekanos yra baltasis triukšmas:
+Liekanas apžvelgsime ir ACF bei PACF grafikuose.
 
-```{r}
-balt_p <- Box.test(tiesinis1$res, type="Ljung-Box")
-balt_p12 <- Box.test(tiesinis1$res, lag=12, type="Ljung-Box")
+```{r, echo=F, warning=F}
+Acf(tiesinis1$res, main = "Liekanų autokoreliacija", ylab = "")
+pacf(tiesinis1$res, main = "Dalinė liekanų autokoreliacija", ylab = "")
 ```
 
+Grafikuose galima įžvelgti keletą reikšmingų vėlinių (išeina už mėlynos punktyrinės linijos). Todėl atliekamas Ljung-Box testas su $H_0$ hipoteze, kad liekanos yra baltasis triukšmas:
 
-Gauta p reikšmė `balt_p`. Liekanos nėra baltasis triukšmas. Naudojama "auto.arima" parinkti ARMA(p,q) modelį likučiams:
+```{r, echo=F, warning=F}
+Box.test(tiesinis1$res, type="Ljung-Box")
+```
 
-```{r}
+Gauta p reikšmė < 0.05. Liekanos nėra baltasis triukšmas. Todėl naudojama funkcija $auto.arima$ parinkti ARMA(p,q) modelį likučiams:
+
+```{r,echo=F, warning=F}
 auto.arima(tiesinis1$res, d=0)
-lmma1 <- arima(ses[1:92], order = c(1,0,1), xreg = duom[1:92,c("dyzelinas", "pirma_karta_registruotos_priemones", "krituliai_mm", "Sausisbalandis")])
+```
+
+Gautas ARMA(1,1) modelis. Liekanas galima įvertinti modeliu: 
+
+$X_t$ - 0.86$X_{t-1}$ = $Z_t$ - 0.59$Z_{t-1}$
+
+```{r, echo=F, warning=F}
+lmma1 <- arima(nusez[1:94], order = c(1,0,1), 
+               xreg = mod.data[1:94,c("dyzelinas", "pirma_karta_registruotos_priemones", "krituliai_mm", "Sausisbalandis")])
 Box.test(lmma1$res, type = "Ljung-Box")
 ```
 
-Gautas ARMA(1,1) modelis. Liekanas galima įvertinti 
+Atlikus Ljung-Box testą, gauta p reikšmė > 0.05. Vadinasi negalima atmesti nulinės hipotezės bei teigti, kad pervertinto modelio liekanos nesudaro baltojo triukšmo.
 
-$X_t$ + 0.84$X_{t-1}$ = $Z_t$ - 0.56$Z_{t-1}$
+* **6.1 Kryžminė patikra**
 
-* **6.Kryžminė patikra**
-
-Dabar modelio gerumą tikrinsime naudodami kryžminę patikrą. Algoritmo principas - kiekviename žingsnyje didinti prognozuojamos imties stebėjimų skaičių vienetu ir palyginti prognozes su tikromis reikšmėmis. Atlikus šį algoritmą suskaičiuosime prognozės tikslumą MAE ir MAPE rodikliais.
+Modelio gerumas tikrinamas naudodajant kryžminę patikrą. Algoritmo principas - kiekviename žingsnyje didinti prognozuojamos imties stebėjimų skaičių vienetu ir palyginti prognozes su tikromis reikšmėmis. Atlikus šį algoritmą prognozės tikslumas bus palygintas MAE ir MAPE rodikliais.
 
 ```{r}
 k <- 48 # minimum size for training set
