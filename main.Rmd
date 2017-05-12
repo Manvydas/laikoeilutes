@@ -202,4 +202,4 @@ Sprendžiant pagal RMSE, MAE ir MAPE, gauto modelio prognozės yra tikslesnės.
 
 Galutinis modelis:
 
-$Y_t$ = 1.09$Krituliai$ - 111.25$Kuras$ - 73.05$Sausis-balandis$ + 0.86$X_{t-1}$  $Z_t$ - 0.59$Z_{t-1}$
+$Įvykių skaičius_t$ = 131.4 + 0.85$Įvykių skaičius_{t-1}$ - 0.71$Z_{t-1}$ + $Z_t$ - 27.9$Dyzelino kaina$ + 0.002$Pirmakart registruotos priemonės$ + 0.08$Krituliai$
