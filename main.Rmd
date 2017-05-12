@@ -115,7 +115,7 @@ Duomenyse nepastebėta jokių struktūrinių lūžių.
 
 ```{r, echo=F, warning=F}
 plot(tiesinis1$res, type="l", lwd=2, xlab = "", ylab = "", main = "Liekanos")
-abline(0,0, lwd=1, col="red")
+abline(0,0, lwd=2, col="red")
 ```
 
 Duomenų liekanos daugmaž išsidėsčiusios apie 0 (raudona linija).
@@ -145,9 +145,7 @@ Gauta p reikšmė < 0.05. Liekanos nėra baltasis triukšmas. Todėl naudojama f
 auto.arima(tiesinis1$res, d=0)
 ```
 
-Gautas ARMA(1,1) modelis. Liekanas galima įvertinti modeliu: 
-
-$X_t$ - 0.86$X_{t-1}$ = $Z_t$ - 0.59$Z_{t-1}$
+Gautas ARMA(1,1) modelis. Liekanas galima įvertinti modeliu ARMA(1,1)
 
 ```{r, echo=F, warning=F}
 tiesinis2 <- arima(nusez, order = c(1,0,1), 
@@ -174,23 +172,34 @@ progn1 <- ts(f1, start = c(2009,1), frequency = 12)
 ```
 
 ```{r, echo=F, warning=F}
-nusez <- ts(nusez, start = c(2009,1), frequency = 12)
-plot(nusez, type = "l", main = "Prognozės vs tikrosios reikšmės", lwd = 3, ylab = "", xlab = "Laikas")
-lines(progn1, col = "red", lwd = 3)
-legend("bottomright", c("Tikrosios reikšmės", "Prognozės"), col = c(1,2), lty = c(1,1), cex = 0.8, lwd = 3, pt.cex = 1, text.width = 1)
-```
-
-Kryžminės patikros būdu gautos prognozės atrodo ganėtinai tikslios. Palyginsime gauto modelio prognozių ir $auto.arima$ modelio prognozių tikslumą pagal RMSE, MAE, MAPE.
-
-```{r}
-mod.arima <- auto.arima(nusez)
+mod.arima <- auto.arima(nusez, ic = "aicc")
 f2 = rep(NA, 94)
 for(i in 11:94) try({
-  mod <- arima(nusez[1:(i-1)], order = mod.arima$arma[c(1, 6, 2)], include.mean = F)
+  mod <- arima(nusez[1:(i-1)], order = c(2,2,0), include.mean = F)
   fc = forecast(mod, h=1)
   f2[i] <- fc$mean
 }, silent = T)
 progn2 <- ts(f2, start = c(2009,1), frequency = 12)
 ```
+
+```{r, echo=F, warning=F}
+nusez <- ts(nusez, start = c(2009,1), frequency = 12)
+plot(nusez, type = "l", main = "Prognozės vs tikrosios reikšmės", lwd = 2, ylab = "Įvykių sk.", xlab = "Laikas")
+lines(progn1, col = "red", lwd = 2)
+lines(progn2, col = "blue", lwd = 2)
+legend("bottomleft", c("Tikrosios reikšmės", "Modelio prognozės", "Auto.arima prognozės"), col = c(1,2,4), lty = c(1,1), cex = 0.8, lwd = 2, pt.cex = 1, text.width = 1, bty = "n")
 ```
 
+Iš grafiko sunku nustatyti, kurio modelio prognozės yra tikslesnės. Palyginsime gauto modelio prognozių ir $auto.arima$ modelio prognozių tikslumą pagal RMSE, MAE, MAPE.
+
+```{r, echo=F, warning=F}
+z <- rbind(accuracy(progn1, nusez), accuracy(progn2, nusez))
+rownames(z) <- c("Modelis", "Auto.arima")
+z[,c(2,3,5)]
+```
+
+Sprendžiant pagal RMSE, MAE ir MAPE, gauto modelio prognozės yra tikslesnės.
+
+Galutinis modelis:
+
+$Y_t$ = 1.09$Krituliai$ - 111.25$Kuras$ - 73.05$Sausis-balandis$ + 0.86$X_{t-1}$  $Z_t$ - 0.59$Z_{t-1}$
