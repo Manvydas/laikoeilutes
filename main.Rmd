@@ -83,10 +83,11 @@ mod.data$kuras <- (mod.data$dyzelinas + mod.data$benzinas_95)/2
 ```
 
 ```{r, echo = F, message=F}
-tiesinis1 <- lm(ivykiu_skaicius ~  kuras + krituliai_mm + Sausisbalandis, data = mod.data)
+tiesinis1 <- lm(ivykiu_skaicius ~  kuras + krituliai_mm + Sausisbalandis + pirma_karta_registruotos_priemones, data = mod.data)
 ```
 
-```{r, echo = F}
+
+```{r, echo = F, warning=F}
 kable(summary(tiesinis1)$coef, digits = 2)
 # Jei p-value > 0.05, tai H0 hipotezė priimama - paklaidos homoskedastiškos.
 ```
@@ -202,4 +203,4 @@ Sprendžiant pagal RMSE, MAE ir MAPE, gauto modelio prognozės yra tikslesnės.
 
 Galutinis modelis:
 
-$Įvykių skaičius_t$ = 131.4 + 0.85$Įvykių skaičius_{t-1}$ - 0.71$Z_{t-1}$ + $Z_t$ - 27.9$Dyzelino kaina$ + 0.002$Pirmakart registruotos priemonės$ + 0.08$Krituliai$
+$Įvykių skaičius_t$ = 131.4 + 0.85$Įvykių skaičius_{t-1}$ - 0.71$Z_{t-1}$ + $Z_t$ - 27.9$Dyzelino kaina$ + 0.002$Pirmakart registruotos priemonės$ + 0.08$Krituliai$ + 4.3$Sausis-Balandis$
